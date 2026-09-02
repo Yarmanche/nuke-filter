@@ -1,0 +1,9 @@
+# local secrets / config
+.env
+
+# outputs & scratch
+out/
+in/
+__pycache__/
+*.pyc
+brand/

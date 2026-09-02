@@ -1,0 +1,5 @@
+pillow>=9.0
+requests>=2.25
+python-dotenv>=0.21
+# Optional — only needed for nuke_tray.py (falls back to foreground server without it):
+pystray>=0.19 ; python_version >= "3.7"

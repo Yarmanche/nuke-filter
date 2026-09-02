@@ -1,0 +1,415 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NUKE NETWORK generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans+Condensed:ital,wght@0,900;1,900&display=swap" rel="stylesheet">
+<style>
+  :root { --red:#c41e1e; --gold:#d9a441; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  /* Themed surface lives on #app, not body — the desktop frame keeps control of body */
+  #app {
+    max-width:980px; margin:0 auto; min-height:100vh;
+    color:var(--foreground,#e8e2d6);
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px),
+      #0d0c0a;
+    font:14px/1.45 system-ui,sans-serif;
+    padding:18px 20px 40px;
+  }
+  .mono { font-family:ui-monospace,'Cascadia Mono','Courier New',monospace; }
+  .kicker {
+    font-family:ui-monospace,'Courier New',monospace; font-size:10px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--gold,#d9a441);
+  }
+
+  /* ── masthead ─────────────────────────────────────── */
+  #mast { display:flex; align-items:center; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+  #mast .boxlogo {
+    background:var(--red); color:#fff; padding:6px 10px 5px;
+    font-family:'Fira Sans Condensed','Arial Black',sans-serif; font-weight:900; font-style:italic;
+    font-size:19px; letter-spacing:.02em; line-height:1;
+    box-shadow:3px 3px 0 #000; border:1px solid rgba(255,255,255,.15);
+  }
+  #mast .tag { flex:1; min-width:180px; }
+  #mast .tag .kicker { display:block; }
+  #mast .stamp {
+    font-family:ui-monospace,'Courier New',monospace; font-size:10px; letter-spacing:.15em;
+    color:var(--gold,#d9a441); border:1px solid var(--gold,#d9a441);
+    padding:4px 8px; transform:rotate(-3deg); opacity:.85; white-space:nowrap;
+  }
+  .rule { height:2px; background:linear-gradient(90deg, var(--red) 0 34%, var(--gold) 34% 40%, transparent 40%); margin-bottom:16px; }
+
+  /* ── drop zone ────────────────────────────────────── */
+  #drop {
+    position:relative; border:2px dashed var(--border,#5a544a); border-radius:4px;
+    padding:56px 24px 48px; text-align:center; cursor:pointer;
+    background:rgba(255,255,255,.02); transition:border-color .15s, background .15s;
+  }
+  #drop:hover { border-color:var(--gold,#d9a441); background:rgba(217,164,65,.05); }
+  #drop.drag { border-color:var(--red,#c41e1e); background:rgba(196,30,30,.07); }
+  /* photo-corner brackets, top-left + bottom-right */
+  #drop::before, #drop::after {
+    content:''; position:absolute; width:18px; height:18px; border-color:var(--red,#c41e1e); border-style:solid;
+  }
+  #drop::before { top:-2px; left:-2px; border-width:4px 0 0 4px; }
+  #drop::after { bottom:-2px; right:-2px; border-width:0 4px 4px 0; }
+  #drop .big {
+    font-family:'Fira Sans Condensed','Arial Black',sans-serif; font-weight:900; font-style:italic;
+    font-size:40px; line-height:.95; text-transform:uppercase; letter-spacing:.01em;
+    color:var(--foreground,#e8e2d6); margin-bottom:10px;
+  }
+  #drop .big em { color:var(--red,#c41e1e); font-style:italic; }
+  #drop .sub {
+    font-family:ui-monospace,'Courier New',monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted-foreground,#8a8378);
+  }
+  /* stripe tape on top edge */
+  #drop .tape {
+    position:absolute; top:8px; left:50%; transform:translateX(-50%) rotate(-1deg);
+    width:120px; height:8px;
+    background:repeating-linear-gradient(45deg, var(--red) 0 8px, #0d0c0a 8px 16px);
+    opacity:.55;
+  }
+  #drop video { border:1px solid var(--border,#5a544a); }
+  .proc { font-family:ui-monospace,'Courier New',monospace; font-size:13px; color:var(--muted-foreground,#8a8378); }
+  .proc b { color:var(--foreground,#e8e2d6); }
+  .proc::after { content:'▮'; color:var(--red,#c41e1e); animation:blink 1s steps(1) infinite; margin-left:4px; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  /* ── result panel (injected markup) ───────────────── */
+  .resRow { display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:12px; }
+  .resMeta { font-family:ui-monospace,'Courier New',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold,#d9a441); }
+  .resFoot { font-family:ui-monospace,'Courier New',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-foreground,#8a8378); margin-top:12px; }
+  a.btnGold {
+    display:inline-block; background:var(--gold,#d9a441); color:#0d0c0a; text-decoration:none;
+    font-family:'Fira Sans Condensed','Arial Black',sans-serif; font-weight:900; font-style:italic;
+    font-size:14px; text-transform:uppercase; letter-spacing:.04em;
+    padding:9px 20px 8px; border-radius:2px; box-shadow:3px 3px 0 #000; cursor:pointer;
+  }
+  a.btnGold:active { transform:translate(2px,2px); box-shadow:1px 1px 0 #000; }
+  .fail { font-family:ui-monospace,'Courier New',monospace; font-size:12px; color:#e06c5a; }
+
+
+  /* ── pos grid & nudges ────────────────────────────── */
+  #grid9 { display:grid; grid-template-columns:repeat(3,64px); gap:6px; justify-content:center; margin-top:12px; }
+  .gridBtn { min-width:56px; padding:10px 0; font-size:16px; line-height:1; }
+  #posRead { min-width:90px; text-align:center; }
+
+  /* ── stage & toolbar ──────────────────────────────── */
+  #stage { position:relative; display:none; margin-top:14px; }
+  #cvFrame { position:relative; border:2px solid #000; outline:1px solid var(--border,#5a544a); box-shadow:5px 5px 0 rgba(0,0,0,.55); }
+  canvas { display:block; width:100%; height:auto; cursor:crosshair; touch-action:none; }
+  #bar {
+    display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap; margin-top:14px;
+    padding:12px 14px; border:1px solid var(--border,#5a544a); border-radius:3px;
+    background:rgba(255,255,255,.025);
+  }
+  .fld { display:flex; flex-direction:column; gap:4px; }
+  .fld .kicker { font-size:9px; }
+  .fldRow { display:flex; gap:6px; align-items:center; }
+  input[type=number] {
+    width:64px; background:#060605; border:1px solid var(--border,#5a544a); color:var(--foreground,#e8e2d6);
+    border-radius:2px; padding:6px 7px; font:12px ui-monospace,'Courier New',monospace;
+  }
+  input[type=number]:focus { outline:1px solid var(--gold,#d9a441); }
+  select {
+    appearance:none; -webkit-appearance:none;
+    background:#060605 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23d9a441'/%3E%3C/svg%3E") no-repeat right 8px center;
+    border:1px solid var(--border,#5a544a); color:var(--foreground,#e8e2d6); border-radius:2px;
+    padding:6px 26px 6px 8px; font:12px ui-monospace,'Courier New',monospace; cursor:pointer;
+  }
+  input[type=checkbox] { accent-color: var(--gold,#d9a441); width:15px; height:15px; cursor:pointer; }
+  #grainLbl { flex-direction:row; align-items:center; gap:7px; padding-bottom:6px; cursor:pointer; }
+  #bar .spacer { flex:1; }
+  #hint { font-family:ui-monospace,'Courier New',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted-foreground,#8a8378); padding-bottom:7px; }
+  #hint b { color:var(--gold,#d9a441); font-weight:400; }
+
+  /* ── buttons ──────────────────────────────────────── */
+  button {
+    background:var(--red); color:#fff; border:0; border-radius:2px; padding:10px 20px 9px;
+    font-family:'Fira Sans Condensed','Arial Black',sans-serif; font-weight:900; font-style:italic;
+    font-size:14px; text-transform:uppercase; letter-spacing:.04em; cursor:pointer;
+    box-shadow:3px 3px 0 #000;
+  }
+  button:active { transform:translate(2px,2px); box-shadow:1px 1px 0 #000; }
+  button.ghost {
+    background:transparent; border:1px solid var(--border,#5a544a); color:var(--foreground,#e8e2d6);
+    box-shadow:none; padding:9px 16px 8px;
+  }
+  button.ghost:hover { border-color:var(--gold,#d9a441); color:var(--gold,#d9a441); }
+  #mvPad {
+    position:relative; width:320px; height:auto; margin:14px auto;
+    background:#060605; border:2px dashed var(--gold,#d9a441); border-radius:3px; cursor:crosshair;
+    background-image:linear-gradient(rgba(217,164,65,.14) 1px, transparent 1px), linear-gradient(90deg, rgba(217,164,65,.14) 1px, transparent 1px);
+    background-size:32px 25px;
+  }
+  #moveNote { font-family:ui-monospace,'Courier New',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-foreground,#8a8378); }
+
+  /* ── export overlay ───────────────────────────────── */
+  #expOv {
+    position:fixed; inset:0; background:rgba(6,6,5,.92); display:flex; flex-direction:column; gap:14px;
+    align-items:center; justify-content:center; z-index:99; padding:20px;
+  }
+  #expImg { max-width:92%; max-height:72%; border:2px solid #000; outline:1px solid var(--gold,#d9a441); box-shadow:6px 6px 0 rgba(0,0,0,.6); }
+  .expHint { font-family:ui-monospace,'Courier New',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-foreground,#8a8378); }
+  .expHint b { color:var(--gold,#d9a441); font-weight:400; }
+
+  #foot { margin-top:26px; text-align:center; }
+  #foot .kicker { font-size:9px; opacity:.7; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mast">
+    <span class="boxlogo">NUKE&nbsp;NETWORK</span>
+    <span class="tag"><span class="kicker">bootleg sticker machine · est. 199X</span></span>
+    <span class="stamp">100% AUTHENTIC FAKE</span>
+  </div>
+  <div class="rule"></div>
+
+  <div id="drop">
+    <span class="tape"></span>
+    <div class="big">Drop it <em>here</em>.</div>
+    <div class="sub">photo · video · gif — or click to pick</div>
+  </div>
+
+  <div id="stage">
+    <div id="cvFrame"><canvas id="cv"></canvas></div>
+    <div id="bar">
+      <div class="fld">
+        <span class="kicker">box width %</span>
+        <input id="wPct" type="number" value="55" min="5" max="100">
+      </div>
+      <div class="fld">
+        <span class="kicker">x %</span>
+        <input id="xPct" type="number" min="0" max="100">
+      </div>
+      <div class="fld">
+        <span class="kicker">y %</span>
+        <input id="yPct" type="number" min="0" max="100">
+      </div>
+      <div class="fld">
+        <span class="kicker">position</span>
+        <select id="posSel">
+          <option value="">—</option>
+          <option value="center">center</option>
+          <option value="tl">top left</option>
+          <option value="tr">top right</option>
+          <option value="bl">bottom left</option>
+          <option value="br">bottom right</option>
+          <option value="ml">mid left</option>
+          <option value="mr">mid right</option>
+          <option value="mt">mid top</option>
+          <option value="mb">mid bottom</option>
+        </select>
+      </div>
+      <label class="fld" id="grainLbl" for="grain">
+        <input id="grain" type="checkbox">
+        <span class="kicker">grain</span>
+      </label>
+      <span class="spacer"></span>
+      <span id="hint"><b>drag</b> = move · <b>se corner</b> = resize · aspect locked</span>
+      <button class="ghost" id="reset">new image</button>
+      <button id="save">export jpg →</button>
+    </div>
+  </div>
+
+  <div id="foot"><span class="kicker">nuke network © 199X · no refunds · no returns</span></div>
+</div>
+<script>
+const drop=document.getElementById('drop'), stage=document.getElementById('stage'),
+      cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let img=null, box={x:.5,y:.5,w:.55}; // x,y = center fractions; w = width fraction
+let drag=null;
+const FONT='"Fira Sans Condensed", "Arial Black", sans-serif';
+const LOGO_URI="data:image/png;base64,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";
+const logoImg=new Image(); logoImg.src=LOGO_URI;
+logoImg.onerror=()=>{ /* fallback below */ };
+const VID_EXT=/\.(mp4|webm|mov|mkv|avi|gif)$/i;
+let busy=false;
+function loadImage(f){
+  if(VID_EXT.test(f.name)) return processMedia(f);
+  img=new Image();
+  img.onload=()=>{ drop.style.display='none'; stage.style.display='block'; syncInputs(); draw(); applyPos(document.getElementById('posSel').value); };
+  img.src=URL.createObjectURL(f);
+}
+let lastFile=null, lastFx=.5, lastFy=.5;
+const DROP_HOME='<span class="tape"></span><div class="big">Drop it <em>here</em>.</div><div class="sub">photo · video · gif — or click to pick</div>';
+async function processMedia(f, custom){
+  if(busy) return; busy=true;
+  const isReprocess = !!custom;
+  if(!isReprocess){ lastFile=f; lastFx=.5; lastFy=.5; }
+  drop.innerHTML='<div class="proc">'+(isReprocess?'moving box…':'processing <b>'+f.name+'</b> — ffmpeg is chewing…')+'</div>';
+  try{
+    const pos = isReprocess ? 'custom' : (document.getElementById('posSel').value||'center');
+    const w=document.getElementById('wPct').value||55;
+    let url='/api/nuke?name='+encodeURIComponent(lastFile.name)+'&width='+(w/100);
+    if(isReprocess){ url+='&pos=custom&fx='+lastFx+'&fy='+lastFy; }
+    else url+='&pos='+pos;
+    const r=await fetch(url, {method:'POST', body: isReprocess ? lastFile : f});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'server error');
+    const isGif=j.url.endsWith('.gif');
+    drop.innerHTML=
+      '<video src="'+j.url+'" '+(isGif?'':'controls autoplay muted loop ')+
+      'style="max-width:100%;max-height:320px;display:block;margin:0 auto;border:2px solid #000;outline:1px solid var(--border,#5a544a);box-shadow:5px 5px 0 rgba(0,0,0,.55)" onerror="this.style.display=\'none\'" onload="window.lastAR=this.videoWidth/this.videoHeight"></video>'
+      +'<div class="resRow"><span class="resMeta">done — '+j.mb+' MB</span>'
+      +'<a class="btnGold" href="'+j.url+'" download="nuked'+(isGif?'.gif':'.mp4')+'">⬇ save '+(isGif?'gif':'video')+'</a>'
+      +'<button id="againBtn" class="ghost">process another</button>'
+      +'<button id="moveBtn" class="ghost">⤨ move box</button>'
+      +'</div><div class="resFoot">or just drop the next file onto this box</div>';
+    document.getElementById('againBtn').onclick=()=>{ drop.innerHTML=DROP_HOME; lastFile=null; };
+    const mv=document.getElementById('moveBtn');
+    if(mv) mv.onclick=()=>moveBoxUI(isGif);
+  }catch(err){
+    const msg = /network/i.test(err.message)
+      ? 'connection to the local server dropped mid-upload (file too big or server busy) — try again'
+      : err.message;
+    drop.innerHTML='<div class="fail">failed: '+msg+'</div><div class="resRow"><button id="againBtn" class="ghost">try again</button></div>';
+    document.getElementById('againBtn').onclick=()=>{ drop.innerHTML=DROP_HOME; lastFile=null; };
+  }
+  busy=false;
+}
+function moveBoxUI(){
+  // 3x3 grid of 9 positions + arrow nudge buttons, re-processing via server
+  const cell = (label, fx, fy) => '<button class="ghost gridBtn" data-fx="'+fx+'" data-fy="'+fy+'">'+label+'</button>';
+  drop.innerHTML =
+    '<div id="moveNote"><b style="color:var(--gold,#d9a441)">pick a slot</b> — or nudge with arrows</div>'
+    +'<div class="resRow" id="grid9">'
+      + cell('◤',0.08,0.08) + cell('▲',0.5,0.08) + cell('◥',0.92,0.08)
+      + cell('◀',0.08,0.5) + cell('●',0.5,0.5)  + cell('▶',0.92,0.5)
+      + cell('◣',0.08,0.92)+ cell('▼',0.5,0.92) + cell('◢',0.92,0.92)
+    +'</div>'
+    +'<div class="resRow">'
+      +'<button class="ghost gridBtn" id="nUp">↑</button>'
+      +'<button class="ghost gridBtn" id="nLeft">←</button>'
+      +'<button class="ghost gridBtn" id="nDown">↓</button>'
+      +'<button class="ghost gridBtn" id="nRight">→</button>'
+      +'<span class="resMeta" id="posRead">x 50 · y 50</span>'
+    +'</div>'
+    +'<div class="resRow"><button id="cnclBtn" class="ghost">cancel</button></div>';
+  const read=document.getElementById('posRead');
+  const setPos=(fx,fy)=>{
+    lastFx=Math.min(.95,Math.max(.05,fx));
+    lastFy=Math.min(.95,Math.max(.05,fy));
+    read.textContent='x '+Math.round(lastFx*100)+' · y '+Math.round(lastFy*100);
+  };
+  document.querySelectorAll('#grid9 .gridBtn').forEach(b=>{
+    b.onclick=()=>{ setPos(parseFloat(b.dataset.fx), parseFloat(b.dataset.fy)); processMedia(null,true); };
+  });
+  const STEP=0.08;
+  document.getElementById('nUp').onclick   =()=>{ setPos(lastFx,lastFy-STEP); processMedia(null,true); };
+  document.getElementById('nDown').onclick =()=>{ setPos(lastFx,lastFy+STEP); processMedia(null,true); };
+  document.getElementById('nLeft').onclick =()=>{ setPos(lastFx-STEP,lastFy); processMedia(null,true); };
+  document.getElementById('nRight').onclick=()=>{ setPos(lastFx+STEP,lastFy); processMedia(null,true); };
+  document.getElementById('cnclBtn').onclick=()=>{ drop.innerHTML=DROP_HOME; };
+}
+// ?src=/path.jpg preloads an image (for testing / quick start)
+const srcParam=new URLSearchParams(location.search).get('src');
+if(srcParam){ img=new Image(); img.onload=()=>{ drop.style.display='none'; stage.style.display='block'; syncInputs(); draw(); applyPos(document.getElementById('posSel').value); }; img.src=srcParam; }
+drop.onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*,video/*,.gif'; i.onchange=e=>loadImage(e.target.files[0]); i.click(); };
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
+drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag'); if(e.dataTransfer.files[0])loadImage(e.dataTransfer.files[0]);};
+
+function boxPix(){ // box in canvas px, aspect locked 5.62:1
+  const bw=box.w*cv.width, bh=bw/5.5;
+  return {x:box.x*cv.width-bw/2, y:box.y*cv.height-bh/2, w:bw, h:bh};
+}
+function draw(){
+  if(!img) return;
+  cv.width=img.naturalWidth; cv.height=img.naturalHeight;
+  ctx.filter='grayscale(1)';
+  ctx.drawImage(img,0,0);
+  ctx.filter='none';
+  if(document.getElementById('grain').checked) grain();
+  const b=boxPix();
+  // stamp the red box logo, scaled to the box (aspect locked 5.5:1)
+  drawLogo(b);
+}
+function drawLogo(b){
+  if(logoImg.complete && logoImg.naturalWidth){ ctx.drawImage(logoImg, b.x, b.y, b.w, b.h); return; }
+  ctx.fillStyle='#c41e1e';
+  ctx.fillRect(b.x,b.y,b.w,b.h);
+  const fs=b.h*0.62;
+  ctx.font='900 italic '+fs+'px '+FONT;
+  ctx.fillStyle='#fff'; ctx.textBaseline='middle';
+  ctx.fillText('NUKE NETWORK', b.x+b.w*0.05, b.y+b.h/2+fs*0.06);
+}
+function grain(){
+  const g=ctx.getImageData(0,0,cv.width,cv.height), d=g.data;
+  for(let i=0;i<d.length;i+=4){ const n=(Math.random()-0.5)*26; d[i]+=n;d[i+1]+=n;d[i+2]+=n; }
+  ctx.putImageData(g,0,0);
+}
+function syncInputs(){
+  document.getElementById('xPct').value=Math.round(box.x*100);
+  document.getElementById('yPct').value=Math.round(box.y*100);
+}
+function pos(e){
+  const r=cv.getBoundingClientRect();
+  const p=e.touches?e.touches[0]:e;
+  return {x:(p.clientX-r.left)/r.width*cv.width, y:(p.clientY-r.top)/r.height*cv.height};
+}
+cv.addEventListener('pointerdown',e=>{
+  const p=pos(e), b=boxPix();
+  const onHandle = p.x>b.x+b.w-28 && p.y>b.y+b.h-28;
+  drag={mode:onHandle?'resize':'move', sx:p.x, sy:p.y, bx:box.x, by:box.y, bw:box.w};
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  const p=pos(e), b=boxPix();
+  if(drag.mode==='move'){
+    box.x=Math.min(1,Math.max(0,drag.bx+(p.x-drag.sx)/cv.width));
+    box.y=Math.min(1,Math.max(0,drag.by+(p.y-drag.sy)/cv.height));
+  } else {
+    const nw=Math.max(.05, drag.bw+(p.x-(b.x+b.w))/cv.width);
+    box.w=Math.min(1,nw);
+    box.x=Math.min(1,Math.max(0,drag.bx+(p.x-drag.sx)/(2*cv.width)));
+    box.y=Math.min(1,Math.max(0,drag.by+(p.y-drag.sy)/(2*cv.height)));
+  }
+  syncInputs(); draw();
+});
+addEventListener('pointerup',()=>drag=null);
+for(const id of ['wPct','xPct','yPct']) document.getElementById(id).oninput=e=>{
+  const v=parseFloat(e.target.value);
+  if(id==='wPct') box.w=v/100; if(id==='xPct') box.x=v/100; if(id==='yPct') box.y=v/100;
+  draw();
+};
+// position presets (same 9 as nuke_vid.py; 20px margin scaled by image size)
+function applyPos(p){
+  if(!p || !img || !cv.width) return;
+  const M={center:[.5,.5],tl:[0,0],tr:[1,0],bl:[0,1],br:[1,1],ml:[0,.5],mr:[1,.5],mt:[.5,0],mb:[.5,1]};
+  const [fx,fy]=M[p];
+  const b=boxPix();
+  const hw=b.w/2/cv.width, hh=b.h/2/cv.height;  // half box as fraction
+  box.x = fx===0 ? hw+0.02 : fx===1 ? 1-hw-0.02 : 0.5;
+  box.y = fy===0 ? hh+0.02 : fy===1 ? 1-hh-0.02 : 0.5;
+  syncInputs(); draw();
+}
+document.getElementById('posSel').onchange=e=>applyPos(e.target.value);
+document.getElementById('grain').onchange=draw;
+document.getElementById('reset').onclick=()=>{ img=null; stage.style.display='none'; drop.style.display='block'; drop.innerHTML=DROP_HOME; };
+document.getElementById('save').onclick=()=>{
+  try {
+    const url=cv.toDataURL('image/jpeg',0.92);
+    // in-page preview: right-click -> Save image as… (works when downloads are blocked)
+    let ov=document.getElementById('expOv');
+    if(!ov){
+      ov=document.createElement('div'); ov.id='expOv';
+      ov.innerHTML='<img id="expImg"><div class="expHint">right-click the image → <b>save image as…</b></div>'
+        +'<a id="expDl" class="btnGold" download="nuke-network.jpg" target="_self">download jpg</a>'
+        +'<button class="ghost" onclick="document.getElementById(\'expOv\').remove()">close</button>';
+      document.body.appendChild(ov);
+      ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+    }
+    document.getElementById('expImg').src=url;
+    document.getElementById('expDl').href=url;
+  } catch(err) {
+    alert('export failed: '+err.message);
+  }
+};
+</script>
+</body>
+</html>

@@ -25,7 +25,7 @@ def _env(key, default=None):
 
 
 # ---- brand / appearance -----------------------------------------------------
-APP_NAME    = _env("FILTER_APP_NAME", "Boxed Filter")   # display name (bot /start, tray tooltip)
+APP_NAME    = _env("FILTER_APP_NAME", "Boxed Filter")   # display name (bot /start)
 BRAND_TEXT  = _env("FILTER_TEXT", "YOUR BRAND")          # text rendered inside the box
 BRAND_COLOR = _env("FILTER_COLOR", "196,30,30")          # box color, "R,G,B"
 LOGO_WIDTH  = float(_env("FILTER_LOGO_WIDTH", "0.55"))   # logo width as fraction of image

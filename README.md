@@ -11,7 +11,6 @@ Three front-ends share the same core:
 | `nuke_vid.py` | Video / GIF / single-photo filter via ffmpeg |
 | `nuke_server.py` | Local web server: serves `generator.html`, drag & drop in the browser (`http://localhost:8788`) |
 | `nuke_bot.py` | Telegram long-poll bot: send media, get the filtered version back |
-| `nuke_tray.py` | Tray icon that starts server + bot together (optional) |
 
 ## Setup
 
@@ -35,12 +34,12 @@ code is machine-specific. All paths are relative to the project folder.
 
 | Variable | Default | Used by |
 |---|---|---|
-| `FILTER_BOT_TOKEN` | — (required for the bot) | bot, tray |
+| `FILTER_BOT_TOKEN` | — (required for the bot) | bot |
 | `FILTER_TEXT` | `YOUR BRAND` | `run.py` logo rendering |
 | `FILTER_COLOR` | `196,30,30` | `run.py` box color (R,G,B) |
-| `FILTER_APP_NAME` | `Boxed Filter` | bot `/start`, tray tooltip |
+| `FILTER_APP_NAME` | `Boxed Filter` | bot `/start` |
 | `FILTER_LOGO_WIDTH` | `0.55` | default logo width fraction |
-| `FILTER_PORT` | `8788` | server / tray |
+| `FILTER_PORT` | `8788` | server |
 | `FILTER_FONT` | auto-detect | path to a bold `.ttf` |
 | `FILTER_LOGO` | `assets/nuke_logo.png` | logo image override |
 | `FILTER_OUT_DIR` | `out/` | `run.py` output dir |
@@ -73,9 +72,6 @@ Telegram bot (get a token from @BotFather first):
     FILTER_BOT_TOKEN=123:abc python3 nuke_bot.py
     # or put FILTER_BOT_TOKEN=... in a .env file next to the scripts
 
-Tray (optional, needs `pystray`):
-
-    python3 nuke_tray.py
 
 ## Quality notes (locked settings, do not tune down)
 
